@@ -1,0 +1,57 @@
+{
+  "entities": {
+    "JournalEntry": {
+      "title": "JournalEntry",
+      "description": "A user journal reflection entry with multi-turn AI interactions and cognitive insights",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the journal entry",
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the owner user",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the journal reflection",
+          "maxLength": 300
+        },
+        "content": {
+          "type": "string",
+          "description": "Main body text of the journal entry",
+          "maxLength": 50000
+        },
+        "mood": {
+          "type": "string",
+          "description": "Emotional valence or mood tag",
+          "maxLength": 50
+        },
+        "summary": {
+          "type": "string",
+          "description": "AI-generated executive summary of the entry",
+          "maxLength": 1000
+        },
+        "createdAt": {
+          "type": "number",
+          "description": "Timestamp in milliseconds when created"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp in milliseconds when last modified"
+        }
+      },
+      "required": ["id", "userId", "title", "content", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/entries/{entryId}": {
+      "schema": "JournalEntry",
+      "description": "Private, owner-isolated journal reflection entries"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Daybook",
+  "description": "Daybook — AI-powered private journaling, cognitive reflection, and automated AI reminder & motivation engine powered by Gemini 3.6 Flash and Cloud Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
