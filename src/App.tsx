@@ -339,6 +339,14 @@ export default function App() {
               onRefresh={() => runReminderAnalysis(entries, true)}
               onSelectPrompt={handleSelectPromptFromDigest}
               onToggleTaskComplete={handleToggleTaskComplete}
+              onClearAllTasks={() => {
+                if (digest?.reminders && digest.reminders.length > 0) {
+                  const allIds = digest.reminders.map((r) => r.id);
+                  setCompletedTaskIds(allIds);
+                  localStorage.setItem('daybook_completed_tasks', JSON.stringify(allIds));
+                }
+              }}
+              onToast={showToast}
               completedTaskIds={completedTaskIds}
               totalEntriesCount={entries.length}
             />

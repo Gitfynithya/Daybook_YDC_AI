@@ -12,7 +12,9 @@ import {
   Compass, 
   ArrowRight,
   Clock,
-  X
+  X,
+  Check,
+  RotateCcw
 } from 'lucide-react';
 import { ReminderAnalysisResult, ReminderTask } from '../types';
 
@@ -22,6 +24,8 @@ interface DailyDigestBannerProps {
   onRefresh: () => void;
   onSelectPrompt?: (promptText: string) => void;
   onToggleTaskComplete?: (taskId: string) => void;
+  onClearAllTasks?: () => void;
+  onToast?: (message: string, type?: 'info' | 'success' | 'error') => void;
   completedTaskIds?: string[];
   totalEntriesCount: number;
 }
@@ -32,11 +36,39 @@ export const DailyDigestBanner: React.FC<DailyDigestBannerProps> = ({
   onRefresh,
   onSelectPrompt,
   onToggleTaskComplete,
+  onClearAllTasks,
+  onToast,
   completedTaskIds = [],
   totalEntriesCount,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const [isContentCleared, setIsContentCleared] = useState(false);
+
+  const hasPendingReminders = Boolean(digest?.hasReminders && digest.reminders.length > 0);
+
+  const handleClearAllContent = () => {
+    if (hasPendingReminders && digest) {
+      if (onClearAllTasks) {
+        onClearAllTasks();
+      } else if (onToggleTaskComplete) {
+        digest.reminders.forEach((r) => {
+          if (!completedTaskIds.includes(r.id)) {
+            onToggleTaskComplete(r.id);
+          }
+        });
+      }
+      onToast?.('All active commitments marked as clear.', 'success');
+    } else {
+      if (isContentCleared) {
+        setIsContentCleared(false);
+        onToast?.('Daily digest content restored.', 'info');
+      } else {
+        setIsContentCleared(true);
+        onToast?.('Respective digest content cleared.', 'info');
+      }
+    }
+  };
 
   if (isDismissed) {
     return (
@@ -78,7 +110,6 @@ export const DailyDigestBanner: React.FC<DailyDigestBannerProps> = ({
     return null;
   }
 
-  const hasPendingReminders = digest.hasReminders && digest.reminders.length > 0;
   const activeRemindersCount = digest.reminders.filter(r => !completedTaskIds.includes(r.id)).length;
 
   return (
@@ -124,12 +155,42 @@ export const DailyDigestBanner: React.FC<DailyDigestBannerProps> = ({
                   {hasPendingReminders ? 'Active Commitments & Upcoming Deadlines' : 'Daily Motivation & Cognitive Reflection'}
                 </h3>
                 {hasPendingReminders ? (
-                  <span className="px-2.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-full bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 shadow-xs">
-                    {activeRemindersCount} PENDING
+                  <span
+                    id="all-clear-pending-badge"
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleClearAllContent}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClearAllContent(); }}
+                    className="px-2.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-full bg-[var(--accent)]/15 text-[var(--accent)] border border-[var(--accent)]/30 shadow-xs hover:bg-[var(--accent)]/25 hover:border-[var(--accent)]/50 transition-all cursor-pointer select-none inline-flex items-center space-x-1"
+                    title="Click to mark all commitments as clear"
+                  >
+                    <span>{activeRemindersCount} PENDING</span>
                   </span>
                 ) : (
-                  <span className="px-2.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-full bg-[var(--surface-card)] text-[var(--ink-muted)] border border-[var(--ink-faint)] shadow-xs">
-                    ALL CLEAR
+                  <span
+                    id="all-clear-btn"
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleClearAllContent}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClearAllContent(); }}
+                    className={`px-2.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wider rounded-full border shadow-xs transition-all cursor-pointer select-none inline-flex items-center space-x-1 ${
+                      isContentCleared
+                        ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/40 hover:bg-emerald-500/25 hover:border-emerald-500/60'
+                        : 'bg-[var(--surface-card)] text-[var(--ink-muted)] hover:text-rose-500 hover:border-rose-500/40 border-[var(--ink-faint)] hover:bg-rose-500/10 active:scale-95'
+                    }`}
+                    title={isContentCleared ? 'Click to restore digest content' : 'Click to clear respective digest content'}
+                  >
+                    {isContentCleared ? (
+                      <>
+                        <Check className="w-2.5 h-2.5 text-emerald-500 mr-0.5" />
+                        <span>CLEARED</span>
+                      </>
+                    ) : (
+                      <>
+                        <X className="w-2.5 h-2.5 opacity-60 hover:opacity-100 mr-0.5" />
+                        <span>ALL CLEAR</span>
+                      </>
+                    )}
                   </span>
                 )}
               </div>
@@ -263,53 +324,96 @@ export const DailyDigestBanner: React.FC<DailyDigestBannerProps> = ({
               </div>
             )}
 
-            {/* 2. If No Active Reminders: Show Rich Personalized Motivation & Spark */}
+            {/* 2. If No Active Reminders: Show Rich Personalized Motivation & Spark OR Cleared State */}
             {!hasPendingReminders && (
-              <div className="space-y-3.5">
-                {/* Philosophical Quote & Message */}
-                <div className="bg-[var(--surface-card)] p-5 border border-[var(--ink-faint)] rounded-xl shadow-sm">
-                  {digest.motivation?.quote && (
-                    <blockquote className="font-serif italic text-base sm:text-lg text-[var(--ink)] border-l-2 border-[var(--accent)] pl-4 mb-3">
-                      "{digest.motivation.quote}"
-                    </blockquote>
-                  )}
-                  <p className="text-xs sm:text-sm text-[var(--ink-muted)] font-light leading-relaxed">
-                    {digest.motivation?.message}
-                  </p>
-                  
-                  {digest.motivation?.focusArea && (
-                    <div className="mt-4 flex items-center space-x-2">
-                      <span className="font-mono text-[10px] text-[var(--ink-muted)] uppercase tracking-wider font-semibold">TODAY'S FOCUS:</span>
-                      <span className="inline-flex items-center space-x-1.5 px-3 py-1 text-xs font-mono font-medium rounded-lg bg-[var(--surface)] text-[var(--accent)] border border-[var(--ink-faint)] shadow-xs">
-                        <Compass className="w-3.5 h-3.5" />
-                        <span>{digest.motivation.focusArea}</span>
-                      </span>
+              isContentCleared ? (
+                <div 
+                  id="digest-cleared-content-view"
+                  className="bg-[var(--surface-card)] p-6 border border-[var(--ink-faint)] rounded-xl shadow-sm text-center space-y-3"
+                >
+                  <div className="w-10 h-10 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shadow-xs">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="font-serif text-base font-medium text-[var(--ink)]">
+                      Digest Content Cleared
+                    </h4>
+                    <p className="text-xs text-[var(--ink-muted)] font-light mt-1 max-w-md mx-auto leading-relaxed">
+                      The daily reflection quote, cognitive focus area, and journaling prompt have been cleared from this card.
+                    </p>
+                  </div>
+                  <div className="pt-2 flex items-center justify-center space-x-3">
+                    <button
+                      id="restore-cleared-content-btn"
+                      onClick={() => {
+                        setIsContentCleared(false);
+                        onToast?.('Daily digest content restored.', 'info');
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium text-[var(--accent)] hover:bg-[var(--surface)] border border-[var(--ink-faint)] hover:border-[var(--accent)] transition-all cursor-pointer shadow-xs inline-flex items-center space-x-1.5"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>RESTORE CONTENT</span>
+                    </button>
+                    <button
+                      id="refresh-cleared-content-btn"
+                      onClick={() => {
+                        setIsContentCleared(false);
+                        onRefresh();
+                      }}
+                      className="px-3.5 py-1.5 rounded-lg text-xs font-mono font-medium text-[var(--ink)] bg-[var(--surface)] hover:bg-[var(--surface-card)] border border-[var(--ink-faint)] transition-all cursor-pointer shadow-xs inline-flex items-center space-x-1.5"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>GENERATE NEW SPARK</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3.5">
+                  {/* Philosophical Quote & Message */}
+                  <div className="bg-[var(--surface-card)] p-5 border border-[var(--ink-faint)] rounded-xl shadow-sm">
+                    {digest.motivation?.quote && (
+                      <blockquote className="font-serif italic text-base sm:text-lg text-[var(--ink)] border-l-2 border-[var(--accent)] pl-4 mb-3">
+                        "{digest.motivation.quote}"
+                      </blockquote>
+                    )}
+                    <p className="text-xs sm:text-sm text-[var(--ink-muted)] font-light leading-relaxed">
+                      {digest.motivation?.message}
+                    </p>
+                    
+                    {digest.motivation?.focusArea && (
+                      <div className="mt-4 flex items-center space-x-2">
+                        <span className="font-mono text-[10px] text-[var(--ink-muted)] uppercase tracking-wider font-semibold">TODAY'S FOCUS:</span>
+                        <span className="inline-flex items-center space-x-1.5 px-3 py-1 text-xs font-mono font-medium rounded-lg bg-[var(--surface)] text-[var(--accent)] border border-[var(--ink-faint)] shadow-xs">
+                          <Compass className="w-3.5 h-3.5" />
+                          <span>{digest.motivation.focusArea}</span>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Journaling Spark */}
+                  {digest.motivation?.journalingPrompt && onSelectPrompt && (
+                    <div className="bg-[var(--surface-card)] p-4 border border-[var(--accent)]/30 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div className="space-y-1">
+                        <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-[var(--accent)]">
+                          [ DAILY JOURNALING SPARK ]
+                        </span>
+                        <p className="font-serif italic text-sm sm:text-base text-[var(--ink)] font-normal">
+                          "{digest.motivation.journalingPrompt}"
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => onSelectPrompt(digest.motivation.journalingPrompt!)}
+                        className="shrink-0 btn-cyber flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-[var(--ink)] text-[var(--bg)] border border-[var(--ink)] hover:border-[var(--accent)] font-mono text-xs font-medium uppercase tracking-wider transition-all cursor-pointer hover:shadow-xl shadow-sm"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Write on this topic</span>
+                      </button>
                     </div>
                   )}
                 </div>
-
-                {/* Journaling Spark */}
-                {digest.motivation?.journalingPrompt && onSelectPrompt && (
-                  <div className="bg-[var(--surface-card)] p-4 border border-[var(--accent)]/30 rounded-xl shadow-sm hover:shadow-md transition-shadow flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    <div className="space-y-1">
-                      <span className="font-mono text-[10px] uppercase font-bold tracking-widest text-[var(--accent)]">
-                        [ DAILY JOURNALING SPARK ]
-                      </span>
-                      <p className="font-serif italic text-sm sm:text-base text-[var(--ink)] font-normal">
-                        "{digest.motivation.journalingPrompt}"
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => onSelectPrompt(digest.motivation.journalingPrompt!)}
-                      className="shrink-0 btn-cyber flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-[var(--ink)] text-[var(--bg)] border border-[var(--ink)] hover:border-[var(--accent)] font-mono text-xs font-medium uppercase tracking-wider transition-all cursor-pointer hover:shadow-xl shadow-sm"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>Write on this topic</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              )
             )}
 
           </div>
